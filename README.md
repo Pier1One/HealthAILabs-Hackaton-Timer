@@ -33,7 +33,3 @@ A single-file web app for managing hackathon schedules in real time. No server, 
 - Vanilla HTML, CSS, and JavaScript — no frameworks, no dependencies
 - Web Audio API for chime generation
 - `localStorage` for persistence
-
-## License
-
-MIT
