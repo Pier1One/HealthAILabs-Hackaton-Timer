@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hackathon Timer — SIIAM Health AI Labs</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 1.5rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.1rem;
+      color: #64748b;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+    }
+
+    /* ── Current Activity Panel ── */
+    #current-panel {
+      background: #1e293b;
+      border-radius: 1rem;
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+
+    .current-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #64748b;
+      margin-bottom: 0.5rem;
+    }
+
+    #current-name {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      min-height: 2.5rem;
+    }
+
+    #timer {
+      font-size: 5rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.75rem;
+      transition: color 0.4s;
+      color: #38bdf8;
+    }
+
+    #timer.timer-warning { color: #f59e0b; }
+
+    #timer.timer-critical {
+      color: #ef4444;
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.35; }
+    }
+
+    #next-info {
+      color: #94a3b8;
+      font-size: 0.95rem;
+      margin-bottom: 1.5rem;
+      min-height: 1.25rem;
+    }
+
+    #postpone-btn {
+      display: none;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      padding: 0.75rem 1.75rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    #postpone-btn:hover { background: #2563eb; }
+
+    /* ── Schedule Panel ── */
+    #schedule-panel {
+      background: #1e293b;
+      border-radius: 1rem;
+      padding: 1.5rem;
+    }
+
+    #schedule-panel h2 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #64748b;
+      margin-bottom: 1rem;
+    }
+
+    /* Activity rows */
+    .activity-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 0.5rem;
+      border-bottom: 1px solid #334155;
+      border-radius: 0.375rem;
+      transition: background 0.3s;
+    }
+
+    .activity-row:last-of-type { border-bottom: none; }
+
+    .activity-row.active-row {
+      background: #1e3a5f;
+      border-color: transparent;
+      padding-left: 0.75rem;
+    }
+
+    .activity-name { flex: 1; font-weight: 500; }
+
+    .activity-time {
+      color: #94a3b8;
+      font-size: 0.875rem;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Inline edit row */
+    .edit-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #334155;
+      flex-wrap: wrap;
+    }
+
+    .edit-row input[type="text"]  { flex: 1; min-width: 120px; }
+    .edit-row input[type="time"]  { width: 108px; }
+
+    /* Add form */
+    #add-form {
+      margin-top: 1.25rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid #334155;
+    }
+
+    #add-form h3 {
+      font-size: 0.75rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.75rem;
+    }
+
+    .add-fields {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .add-fields input[type="text"] { flex: 1; min-width: 150px; }
+
+    /* Shared input styles */
+    input[type="text"],
+    input[type="time"] {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 0.375rem;
+      color: #e2e8f0;
+      padding: 0.5rem 0.625rem;
+      font-size: 0.875rem;
+    }
+
+    input[type="text"]::placeholder { color: #475569; }
+
+    input[type="text"]:focus,
+    input[type="time"]:focus {
+      outline: 2px solid #3b82f6;
+      border-color: transparent;
+    }
+
+    /* Buttons */
+    .btn-primary {
+      background: #22c55e;
+      color: white;
+      border: none;
+      border-radius: 0.375rem;
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn-primary:hover { background: #16a34a; }
+
+    .btn-sm {
+      background: #334155;
+      color: #cbd5e1;
+      border: none;
+      border-radius: 0.375rem;
+      padding: 0.375rem 0.625rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn-sm:hover { background: #475569; }
+
+    .btn-danger { background: #7f1d1d; color: #fca5a5; }
+    .btn-danger:hover { background: #991b1b; }
+
+    .empty {
+      color: #475569;
+      font-style: italic;
+      padding: 0.5rem 0;
+      font-size: 0.9rem;
+    }
+
+    .error-msg {
+      color: #f87171;
+      font-size: 0.8rem;
+      margin-top: 0.375rem;
+      width: 100%;
+    }
+
+    html { color-scheme: dark; }
+  </style>
+</head>
+<body>
+
+  <h1>SIIAM Health AI Labs — Hackathon</h1>
+
+  <!-- Current Activity Panel -->
+  <div id="current-panel">
+    <div class="current-label">Current Activity</div>
+    <div id="current-name">—</div>
+    <div id="timer">--:--</div>
+    <div id="next-info"></div>
+    <button id="postpone-btn" onclick="postpone()">+10 min</button>
+  </div>
+
+  <!-- Schedule Panel -->
+  <div id="schedule-panel">
+    <h2>Schedule</h2>
+    <div id="activity-list"></div>
+
+    <form id="add-form" onsubmit="handleAdd(event)">
+      <h3>Add Activity</h3>
+      <div class="add-fields">
+        <input type="text" id="add-name" placeholder="Activity name" autocomplete="off">
+        <input type="time" id="add-start">
+        <input type="time" id="add-end">
+        <button type="submit" class="btn-primary">Add</button>
+      </div>
+      <div class="error-msg" id="add-error"></div>
+    </form>
+  </div>
+
+  <script>
+    // ── STATE ──────────────────────────────────────────────
+    const STORAGE_KEY = 'hackathon_schedule';
+    let state = { activities: [] };
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) state = JSON.parse(raw);
+      } catch { state = { activities: [] }; }
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function generateId() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2);
+    }
+
+    // ── TIME UTILS ─────────────────────────────────────────
+    function parseTime(timeStr) {
+      // Returns total minutes since midnight for "HH:MM"
+      const [h, m] = timeStr.split(':').map(Number);
+      if (isNaN(h) || isNaN(m)) throw new Error(`Invalid time: "${timeStr}"`);
+      return h * 60 + m;
+    }
+
+    function formatTime(totalMinutes) {
+      const h = Math.floor(totalMinutes / 60) % 24;
+      const m = totalMinutes % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+
+    function nowMinutes() {
+      const d = new Date();
+      return d.getHours() * 60 + d.getMinutes();
+    }
+
+    function nowSeconds() {
+      const d = new Date();
+      return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function sortedActivities() {
+      return [...state.activities].sort((a, b) => parseTime(a.startTime) - parseTime(b.startTime));
+    }
+
+    // ── ACTIVITY QUERIES ───────────────────────────────────
+    function getCurrentActivity() {
+      const now = nowMinutes();
+      return sortedActivities().find(
+        a => parseTime(a.startTime) <= now && now < parseTime(a.endTime)
+      ) || null;
+    }
+
+    function getNextActivity(currentId) {
+      const sorted = sortedActivities();
+      if (!currentId) {
+        const now = nowMinutes();
+        return sorted.find(a => parseTime(a.startTime) > now) || null;
+      }
+      const idx = sorted.findIndex(a => a.id === currentId);
+      return idx >= 0 && idx < sorted.length - 1 ? sorted[idx + 1] : null;
+    }
+
+    // ── RENDER SCHEDULE ────────────────────────────────────
+    function renderSchedule() {
+      const list = document.getElementById('activity-list');
+      const sorted = sortedActivities();
+
+      if (sorted.length === 0) {
+        list.innerHTML = '<p class="empty">No activities yet.</p>';
+        return;
+      }
+
+      list.innerHTML = sorted.map(a => {
+        const safeId = escapeHtml(a.id);
+        return `
+        <div class="activity-row" id="row-${safeId}">
+          <span class="activity-name">${escapeHtml(a.name)}</span>
+          <span class="activity-time">${a.startTime} – ${a.endTime}</span>
+          <button class="btn-sm" onclick="startEdit('${safeId}')">Edit</button>
+          <button class="btn-sm btn-danger" onclick="deleteActivity('${safeId}')">Delete</button>
+        </div>
+      `;
+      }).join('');
+
+      const current = getCurrentActivity();
+      if (current) highlightCurrentRow(current.id);
+    }
+
+    function highlightCurrentRow(currentId) {
+      document.querySelectorAll('.activity-row').forEach(row => {
+        row.classList.toggle('active-row', row.id === `row-${currentId}`);
+      });
+    }
+
+    // ── ADD ────────────────────────────────────────────────
+    function handleAdd(e) {
+      e.preventDefault();
+      const name      = document.getElementById('add-name').value.trim();
+      const startTime = document.getElementById('add-start').value;
+      const endTime   = document.getElementById('add-end').value;
+      const errEl     = document.getElementById('add-error');
+
+      if (!name || !startTime || !endTime) {
+        errEl.textContent = 'All fields are required.';
+        return;
+      }
+      if (parseTime(endTime) <= parseTime(startTime)) {
+        errEl.textContent = 'End time must be after start time.';
+        return;
+      }
+      errEl.textContent = '';
+
+      state.activities.push({ id: generateId(), name, startTime, endTime });
+      saveState();
+      renderSchedule();
+
+      document.getElementById('add-name').value  = '';
+      document.getElementById('add-start').value = '';
+      document.getElementById('add-end').value   = '';
+      document.getElementById('add-name').focus();
+    }
+
+    // ── EDIT ───────────────────────────────────────────────
+    function startEdit(id) {
+      const a = state.activities.find(x => x.id === id);
+      if (!a) return;
+      const row = document.getElementById(`row-${id}`);
+      if (!row) return;
+
+      const safeId = escapeHtml(id);
+      row.outerHTML = `
+        <div class="edit-row" id="row-${safeId}">
+          <input type="text" id="edit-name-${safeId}" value="${escapeHtml(a.name)}">
+          <input type="time" id="edit-start-${safeId}" value="${a.startTime}">
+          <input type="time" id="edit-end-${safeId}" value="${a.endTime}">
+          <button class="btn-primary" onclick="confirmEdit('${safeId}')">Save</button>
+          <button class="btn-sm" onclick="renderSchedule()">Cancel</button>
+        </div>
+      `;
+      document.getElementById(`edit-name-${safeId}`).focus();
+    }
+
+    function confirmEdit(id) {
+      const name      = document.getElementById(`edit-name-${id}`).value.trim();
+      const startTime = document.getElementById(`edit-start-${id}`).value;
+      const endTime   = document.getElementById(`edit-end-${id}`).value;
+
+      if (!name || !startTime || !endTime) {
+        alert('All fields are required.');
+        return;
+      }
+      if (parseTime(endTime) <= parseTime(startTime)) {
+        alert('End time must be after start time.');
+        return;
+      }
+
+      const a = state.activities.find(x => x.id === id);
+      if (!a) return;
+      a.name = name; a.startTime = startTime; a.endTime = endTime;
+      saveState();
+      renderSchedule();
+    }
+
+    // ── DELETE ─────────────────────────────────────────────
+    function deleteActivity(id) {
+      if (!confirm('Delete this activity?')) return;
+      state.activities = state.activities.filter(a => a.id !== id);
+      saveState();
+      renderSchedule();
+    }
+
+    // ── POSTPONE ───────────────────────────────────────────
+    function postpone() {
+      const current = getCurrentActivity();
+      if (!current) return;
+      const next = getNextActivity(current.id);
+
+      current.endTime = formatTime(parseTime(current.endTime) + 10);
+      if (next) next.startTime = formatTime(parseTime(next.startTime) + 10);
+
+      saveState();
+      renderSchedule();
+    }
+
+    // ── AUDIO ALERT ────────────────────────────────────────
+    function playChime() {
+      try {
+        const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.setValueAtTime(660, ctx.currentTime + 0.18);
+        gain.gain.setValueAtTime(0.35, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
+        osc.onended = () => ctx.close();
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.7);
+      } catch { /* audio unavailable */ }
+    }
+
+    // ── TIMER ──────────────────────────────────────────────
+    let _lastActivityId   = null;
+    let _lastRemainingSec = null;
+
+    function tick() {
+      const current = getCurrentActivity();
+      const next    = getNextActivity(current ? current.id : null);
+
+      const nameEl      = document.getElementById('current-name');
+      const timerEl     = document.getElementById('timer');
+      const nextEl      = document.getElementById('next-info');
+      const postponeBtn = document.getElementById('postpone-btn');
+
+      if (!current) {
+        nameEl.textContent        = '—';
+        timerEl.textContent       = '--:--';
+        timerEl.className         = 'timer';
+        postponeBtn.style.display = 'none';
+
+        if (next) {
+          nextEl.textContent = `Next up: ${next.name} — starts at ${next.startTime}`;
+        } else if (state.activities.length > 0) {
+          nextEl.textContent = 'Schedule complete.';
+        } else {
+          nextEl.textContent = 'Add activities below.';
+        }
+
+        _lastActivityId   = null;
+        _lastRemainingSec = null;
+        return;
+      }
+
+      nameEl.textContent        = current.name;
+      postponeBtn.style.display = 'inline-block';
+      nextEl.textContent        = next
+        ? `Next: ${next.name} at ${next.startTime}`
+        : 'Last activity';
+
+      const endSec    = parseTime(current.endTime) * 60;
+      const remaining = Math.max(0, endSec - nowSeconds());
+      const mins      = Math.floor(remaining / 60);
+      const secs      = remaining % 60;
+      timerEl.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+      if (remaining <= 60)       timerEl.className = 'timer timer-critical';
+      else if (remaining <= 300) timerEl.className = 'timer timer-warning';
+      else                       timerEl.className = 'timer';
+
+      // Chime when activity transitions or hits 0
+      if (_lastActivityId && _lastActivityId !== current.id) playChime();
+      if (remaining === 0 && _lastRemainingSec !== 0) playChime();
+
+      _lastActivityId   = current.id;
+      _lastRemainingSec = remaining;
+
+      highlightCurrentRow(current.id);
+    }
+
+    // ── INIT ──────────────────────────────────────────────
+    loadState();
+    renderSchedule();
+    tick();
+    const _tickInterval = setInterval(tick, 1000);
+  </script>
+</body>
+</html>
